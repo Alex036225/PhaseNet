@@ -1,0 +1,140 @@
+BASE: ['']
+TOOLBOX_MODE: "multi_train_and_test" # "train_and_test"  or "only_test" or "multi_train_and_test"
+TRAIN:
+  BATCH_SIZE: 1
+  EPOCHS: 10
+  LR: 1e-4
+  MODEL_FILE_NAME: UBFC-rPPG
+  PLOT_LOSSES_AND_LR: false
+  DATA:
+    INFO:
+        LIGHT: [1, 2, 3, 4] # 1 - LED-Low, 2 - LED-high, 3 - Incandescent, 4 - Nature
+        MOTION: [1, 2, 3, 4] # 1 - Stationary, 2 - Rotation, 3 - Talking, 4 - Walking
+        EXERCISE: [1, 2] # 1 - True, 2 - False
+        SKIN_COLOR: [3, 4, 5, 6] # Fitzpatrick Scale Skin Types - 3, 4, 5, 6
+        GENDER: [1, 2]  # 1 - Male, 2 - Female
+        GLASSER: [1, 2] # 1 - True, 2 - False
+        HAIR_COVER: [1, 2] # 1 - True, 2 - False
+        MAKEUP: [1, 2] # 1 - True, 2 - False
+    FS: 30
+    DATASET: UBFC-rPPG
+    DO_PREPROCESS: false            # if first time, should be true
+    DATA_FORMAT: NCDHW
+    DATA_PATH: "/public_hw/share/cit_ztyu/cit_yipingxie/rPPG_dataset/UBFC"                     # Raw dataset path, need to be updated
+    CACHED_PATH: "/public_hw/share/cit_ztyu/zhaobo/rPPG_dataset_processed/UBFC"    # Processed dataset save path, need to be updated
+    FILE_LIST_PATH: "/public_hw/share/cit_ztyu/zhaobo/rPPG_dataset_processed/UBFC/DataFileLists"    # Path to store file lists, needs to be updated
+    EXP_DATA_NAME: ""
+    BEGIN: 0.0
+    END: 0.72
+    MULTI_SOURCE:
+      NUM_SOURCE: 1
+      SOURCE_NAME: ["UBFC-rPPG"]
+    PREPROCESS:
+      DATA_TYPE: ['Raw'] #if use physnet, should be DiffNormalized
+      DATA_AUG: ['None']    # 'None' or 'Motion' is supported, used if the data path points to an augmented dataset or requires augmentation
+      LABEL_TYPE: Raw
+      DO_CHUNK: True
+      CHUNK_LENGTH: 128  #only support for factor of 512
+      CROP_FACE:
+        DO_CROP_FACE: True
+        BACKEND: 'HC'    # HC for Haar Cascade, RF for RetinaFace
+        USE_LARGE_FACE_BOX: True
+        LARGE_BOX_COEF: 1.5
+        DETECTION:
+          DO_DYNAMIC_DETECTION: False
+          DYNAMIC_DETECTION_FREQUENCY : 30
+          USE_MEDIAN_FACE_BOX: False    # This should be used ONLY if dynamic detection is used
+      RESIZE:
+        H: 128
+        W: 128
+VALID:
+  DATA:
+    FS: 30
+    DATASET: MMPD
+    DO_PREPROCESS: false               # if first time, should be true
+    DATA_FORMAT: NCDHW
+    DATA_PATH: "/public_hw/share/cit_ztyu/cit_yipingxie/rPPG_dataset/MMPD"                     # Raw dataset path, need to be updated
+    CACHED_PATH: "/public_hw/share/cit_ztyu/zhaobo/rPPG_dataset_processed/MMPD"    # Processed dataset save path, need to be updated
+    FILE_LIST_PATH: "/public_hw/share/cit_ztyu/zhaobo/rPPG_dataset_processed/MMPD/DataFileLists"    # Path to store file lists, needs to be updated
+    EXP_DATA_NAME: ""
+    BEGIN: 0.8
+    END: 1.0
+    PREPROCESS:
+      DATA_TYPE: ['Raw'] #if use physnet, should be DiffNormalized
+      DATA_AUG: ['None']    # 'None' or 'Motion' is supported, used if the data path points to an augmented dataset or requires augmentation
+      LABEL_TYPE: Raw
+      DO_CHUNK: True
+      CHUNK_LENGTH: 128  #only support for factor of 512
+      CROP_FACE:
+        DO_CROP_FACE: True
+        BACKEND: 'HC'    # HC for Haar Cascade, RF for RetinaFace
+        USE_LARGE_FACE_BOX: True
+        LARGE_BOX_COEF: 1.5
+        DETECTION:
+          DO_DYNAMIC_DETECTION: False
+          DYNAMIC_DETECTION_FREQUENCY : 30
+          USE_MEDIAN_FACE_BOX: False    # This should be used ONLY if dynamic detection is used
+      RESIZE:
+        H: 128
+        W: 128
+TEST:
+  METRICS: ['MAE', 'RMSE', 'MAPE', 'Pearson', 'SNR', 'BA']
+  USE_LAST_EPOCH: true                   # to use provided validation dataset to find the best epoch, should be false
+  DATA:
+    INFO:
+          LIGHT: [1, 2, 3, 4]  # 1 - LED-Low, 2 - LED-high, 3 - Incandescent, 4 - Nature
+          MOTION: [1, 2, 3, 4] # 1 - Stationary, 2 - Rotation, 3 - Talking, 4 - Walking
+          EXERCISE: [1, 2] # 1 - True, 2 - False
+          SKIN_COLOR: [3, 4, 5, 6] # Fitzpatrick Scale Skin Types - 3, 4, 5, 6
+          GENDER: [1, 2]  # 1 - Male, 2 - Female
+          GLASSER: [1, 2] # 1 - True, 2 - False
+          HAIR_COVER: [1, 2] # 1 - True, 2 - False
+          MAKEUP: [1, 2] # 1 - True, 2 - False
+    FS: 30
+    DATASET: UBFC-rPPG
+    DO_PREPROCESS: false                  # if first time, should be true
+    DATA_FORMAT: NCDHW
+    DATA_PATH: "/public_hw/share/cit_ztyu/cit_yipingxie/rPPG_dataset/UBFC"                     # Raw dataset path, need to be updated
+    CACHED_PATH: "/public_hw/share/cit_ztyu/zhaobo/rPPG_dataset_processed/UBFC"    # Processed dataset save path, need to be updated
+    FILE_LIST_PATH: "/public_hw/share/cit_ztyu/zhaobo/rPPG_dataset_processed/UBFC/DataFileLists"     # Path to store file lists, needs to be updated
+    EXP_DATA_NAME: ""
+    BEGIN: 0.72
+    END: 1.0
+    PREPROCESS:
+      DATA_TYPE: ['Raw'] #if use physnet, should be DiffNormalized
+      LABEL_TYPE: Raw
+      DO_CHUNK: True
+      CHUNK_LENGTH: 128  #only support for factor of 512
+      CROP_FACE:
+        DO_CROP_FACE: True
+        BACKEND: 'HC'    # HC for Haar Cascade, RF for RetinaFace
+        USE_LARGE_FACE_BOX: True
+        LARGE_BOX_COEF: 1.5
+        DETECTION:
+          DO_DYNAMIC_DETECTION: False
+          DYNAMIC_DETECTION_FREQUENCY : 30
+          USE_MEDIAN_FACE_BOX: False    # This should be used ONLY if dynamic detection is used
+      RESIZE:
+        H: 128
+        W: 128
+DEVICE: cuda:0
+NUM_OF_GPU_TRAIN: 2
+LOG:
+  PATH: ./logs/PhaseNet/UUU
+MODEL:
+  DROP_RATE: 0.2
+  NAME: PhaseNet
+  PHASENET:
+    PARAMS:
+      FEATURE_DIM: 128
+      LATENT_DIM: 32
+      HIDDEN_DIM: 128
+      K_STEPS: 10
+      K_LR: 0.1
+INFERENCE:
+  BATCH_SIZE: 4
+  EVALUATION_METHOD: "FFT"        # "FFT" or "peak detection"
+  EVALUATION_WINDOW:
+    USE_SMALLER_WINDOW: False        # Change this if you'd like an evaluation window smaller than the test video length
+    WINDOW_SIZE: 10        # In seconds
+  MODEL_PATH: ""

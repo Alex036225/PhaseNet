@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+*.pth
+*.pt
+*.pickle
+*.log
+runs/
+PreTrainedModels/
