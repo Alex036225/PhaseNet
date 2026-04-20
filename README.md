@@ -47,28 +47,6 @@ PhaseNet/
 - `multi_train_and_test`
 - `only_test`
 
-## Supported Datasets
-
-- `UBFC-rPPG`
-- `MMPD`
-- `Zhuhai`
-
-## Environment
-
-The runtime environment should provide at least the following packages:
-
-- `torch`
-- `torchvision`
-- `numpy`
-- `scipy`
-- `pandas`
-- `opencv-python`
-- `matplotlib`
-- `tqdm`
-- `yacs`
-- `thop`
-- `retinaface`
-
 ## Training
 
 Training:
