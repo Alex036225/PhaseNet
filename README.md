@@ -1,6 +1,6 @@
 # PhaseNet
 
-PhaseNet is a deep learning framework for video-based physiological signal estimation. The model combines a spatiotemporal visual encoder, temporal interlacing for lightweight motion-aware feature mixing, spatial attention, gated temporal convolution, and latent reconstruction regularization to recover pulse-related temporal dynamics from face video clips.
+PhaseNet is the official implementation of the CVPR 2026 Highlight paper "Phase-net: Physics-grounded harmonic attention system for efficient remote photoplethysmography measurement." It is a deep learning framework for video-based physiological signal estimation. The model combines a spatiotemporal visual encoder, temporal interlacing for lightweight motion-aware feature mixing, spatial attention, gated temporal convolution, and latent reconstruction regularization to recover pulse-related temporal dynamics from face video clips.
 
 This release provides the complete training and testing code path for PhaseNet, including configuration, data loading, optimization, and evaluation. The runtime organization follows the rPPG-Toolbox ecosystem for dataset handling, experiment control, and metric reporting.
 
@@ -87,11 +87,12 @@ This codebase builds on the design of [rPPG-Toolbox](https://github.com/ubicompl
 If you use this repository in research, please cite both the PhaseNet paper and the original rPPG-Toolbox work.
 
 ```latex
-@article{zhao2025phase,
-  title={PHASE-Net: Physics-Grounded Harmonic Attention System for Efficient Remote Photoplethysmography Measurement},
+@inproceedings{zhao2026phase,
+  title={Phase-net: Physics-grounded harmonic attention system for efficient remote photoplethysmography measurement},
   author={Zhao, Bo and Guo, Dan and Cao, Junzhe and Xu, Yong and Zou, Bochao and Tan, Tao and Sun, Yue and Yu, Zitong},
-  journal={arXiv preprint arXiv:2509.24850},
-  year={2025}
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={21198--21207},
+  year={2026}
 }
 
 @article{liu2022rppg,
