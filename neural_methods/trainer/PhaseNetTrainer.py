@@ -138,10 +138,20 @@ class PhaseNetTrainer(BaseTrainer):
         self.loss_fn_sup = Neg_Pearson()
 
         # 3) 模型
+        phasenet_params = config.MODEL.PHASENET.PARAMS
         self.model = PhaseNet(
-            feature_dim=config.MODEL.PHASENET.PARAMS.FEATURE_DIM,
-            latent_dim=config.MODEL.PHASENET.PARAMS.LATENT_DIM,
-            hidden_dim=config.MODEL.PHASENET.PARAMS.HIDDEN_DIM,
+            feature_dim=phasenet_params.FEATURE_DIM,
+            latent_dim=phasenet_params.LATENT_DIM,
+            hidden_dim=phasenet_params.HIDDEN_DIM,
+            tcn_layers=int(getattr(phasenet_params, "TCN_LAYERS", 4)),
+            encoder_channels=list(getattr(phasenet_params, "ENCODER_CHANNELS", [16, 32, 64, 128])),
+            encoder_expand_ratio=int(getattr(phasenet_params, "ENCODER_EXPAND_RATIO", 4)),
+            temporal_module=str(getattr(phasenet_params, "TEMPORAL_MODULE", "gated_tcn")),
+            phase_fs=float(getattr(phasenet_params, "PHASE_FS", getattr(config.TRAIN.DATA, "FS", 30))),
+            phase_low_bpm=float(getattr(phasenet_params, "PHASE_LOW_BPM", 45.0)),
+            phase_high_bpm=float(getattr(phasenet_params, "PHASE_HIGH_BPM", 150.0)),
+            phase_num_freq_bins=int(getattr(phasenet_params, "PHASE_NUM_FREQ_BINS", 96)),
+            phase_dropout=float(getattr(phasenet_params, "PHASE_DROPOUT", 0.1)),
         ).to(self.device)
 
         # 4) DDP 包裹
@@ -450,10 +460,10 @@ class PhaseNetTrainer(BaseTrainer):
                 for sid, seqs in part.items():
                     labels.setdefault(sid, {}).update(seqs)
 
-            print('')
-            calculate_metrics(predictions, labels, self.config)
             if self.config.TEST.OUTPUT_SAVE_DIR:
                 self.save_test_outputs(predictions, labels, self.config)
+            print('')
+            calculate_metrics(predictions, labels, self.config)
 
             # === 可视化（按需打开/默认打开）===
             # try:

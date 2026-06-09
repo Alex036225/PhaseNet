@@ -1,0 +1,26 @@
+BASE: ['PhaseNet_UBFC_UBFC_072_100_train_test.yaml']
+
+TRAIN:
+  BATCH_SIZE: 1
+  MODEL_FILE_NAME: PhysLLM_PhaseNet_Base_PhaseAware_UBFC_128
+
+LOG:
+  PATH: ./logs/PhaseNet/PhysLLM_PhaseNet_Base_PhaseAware_UBFC_128
+
+MODEL:
+  MODEL_DIR: PreTrainedModels/physllm_phasenet_base_phaseaware_ubfc_128
+  PHASENET:
+    PARAMS:
+      SCALE_NAME: base
+      FEATURE_DIM: 128
+      LATENT_DIM: 32
+      HIDDEN_DIM: 128
+      TCN_LAYERS: 4
+      ENCODER_CHANNELS: [16, 32, 64, 128]
+      ENCODER_EXPAND_RATIO: 4
+      TEMPORAL_MODULE: phase_aware
+      PHASE_FS: 30.0
+      PHASE_LOW_BPM: 45.0
+      PHASE_HIGH_BPM: 150.0
+      PHASE_NUM_FREQ_BINS: 96
+      PHASE_DROPOUT: 0.1

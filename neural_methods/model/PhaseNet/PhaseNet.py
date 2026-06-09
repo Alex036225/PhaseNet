@@ -311,36 +311,227 @@ class GatedTCN(nn.Module):
         out = self.final_conv(out)
         return out.permute(0, 2, 1)
 
+
+class PhaseAwareTemporalBlock(nn.Module):
+    def __init__(
+        self,
+        hidden_dim,
+        fs=30.0,
+        low_bpm=45.0,
+        high_bpm=150.0,
+        num_freq_bins=96,
+        dropout=0.1,
+    ):
+        super().__init__()
+        self.fs = float(fs)
+        self.low_bpm = float(low_bpm)
+        self.high_bpm = float(high_bpm)
+        self.num_freq_bins = int(num_freq_bins)
+        groups = 8 if hidden_dim % 8 == 0 else 1
+        self.norm = nn.LayerNorm(hidden_dim)
+        self.branches = nn.ModuleList()
+        for kernel_size, dilation in [(7, 1), (11, 2), (15, 4), (21, 4), (31, 8)]:
+            padding = (kernel_size // 2) * dilation
+            self.branches.append(
+                nn.Sequential(
+                    nn.Conv1d(
+                        hidden_dim,
+                        hidden_dim,
+                        kernel_size=kernel_size,
+                        padding=padding,
+                        dilation=dilation,
+                        groups=hidden_dim,
+                        bias=False,
+                    ),
+                    nn.GroupNorm(groups, hidden_dim),
+                    nn.GELU(),
+                )
+            )
+        self.mix = nn.Sequential(
+            nn.Conv1d(hidden_dim * len(self.branches), hidden_dim, kernel_size=1, bias=False),
+            nn.GroupNorm(groups, hidden_dim),
+            nn.GELU(),
+            nn.Conv1d(hidden_dim, hidden_dim, kernel_size=1, bias=False),
+            nn.GroupNorm(groups, hidden_dim),
+            nn.GELU(),
+        )
+        self.spectral_gate = nn.Sequential(
+            nn.LayerNorm(self.num_freq_bins),
+            nn.Linear(self.num_freq_bins, hidden_dim),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, hidden_dim),
+        )
+        self.artifact_gate = nn.Sequential(
+            nn.Conv1d(hidden_dim, hidden_dim, kernel_size=1),
+            nn.Sigmoid(),
+        )
+        self.phase_proj = nn.Sequential(
+            nn.Linear(2, hidden_dim),
+            nn.GELU(),
+            nn.Linear(hidden_dim, hidden_dim),
+        )
+        self.dropout = nn.Dropout(dropout)
+        self.phase_gate = nn.Parameter(torch.tensor(0.0))
+        self.residual_gate = nn.Parameter(torch.tensor(0.2))
+
+    def _band_power_and_hz(self, x):
+        frames = x.shape[1]
+        centered = x - torch.mean(x, dim=1, keepdim=True)
+        time = torch.arange(frames, device=x.device, dtype=x.dtype) / self.fs
+        bpm = torch.linspace(
+            self.low_bpm,
+            self.high_bpm,
+            self.num_freq_bins,
+            device=x.device,
+            dtype=x.dtype,
+        )
+        angles = 2.0 * torch.pi * (bpm[:, None] / 60.0) * time[None, :]
+        basis_scale = torch.sqrt(torch.clamp(time.new_tensor(frames / 2.0), min=1.0))
+        sin_basis = torch.sin(angles) / basis_scale
+        cos_basis = torch.cos(angles) / basis_scale
+        sin_score = torch.einsum("bth,kt->bhk", centered, sin_basis)
+        cos_score = torch.einsum("bth,kt->bhk", centered, cos_basis)
+        power = (sin_score.square() + cos_score.square()).mean(dim=1) + 1e-6
+        weights = torch.softmax(torch.log(power), dim=1)
+        hz = torch.sum(weights * (bpm / 60.0).unsqueeze(0), dim=1)
+        return power, hz
+
+    def _phase_tokens(self, hz, frames, dtype, device):
+        time = torch.arange(frames, device=device, dtype=dtype)[None, :] / self.fs
+        angles = 2.0 * torch.pi * hz[:, None].to(dtype=dtype) * time
+        phase = torch.stack([torch.sin(angles), torch.cos(angles)], dim=-1)
+        return self.phase_proj(phase)
+
+    def forward(self, x):
+        residual = x
+        x_norm = self.norm(x)
+        power, hz = self._band_power_and_hz(x_norm)
+        y = x_norm.permute(0, 2, 1)
+        y = self.mix(torch.cat([branch(y) for branch in self.branches], dim=1))
+        y = y * torch.sigmoid(self.spectral_gate(torch.log(power))).unsqueeze(-1)
+        y = y * self.artifact_gate(x_norm.permute(0, 2, 1))
+        phase = self._phase_tokens(hz, x.shape[1], x.dtype, x.device).permute(0, 2, 1)
+        y = y + torch.tanh(self.phase_gate) * phase
+        y = self.dropout(y).permute(0, 2, 1)
+        return residual + torch.tanh(self.residual_gate) * y
+
+
+class PhaseAwareTemporalMixer(nn.Module):
+    def __init__(
+        self,
+        input_size,
+        output_size,
+        hidden_dim=128,
+        num_layers=4,
+        fs=30.0,
+        low_bpm=45.0,
+        high_bpm=150.0,
+        num_freq_bins=96,
+        dropout=0.1,
+    ):
+        super().__init__()
+        self.input_norm = nn.LayerNorm(input_size)
+        self.input_proj = nn.Linear(input_size, hidden_dim)
+        self.blocks = nn.ModuleList(
+            [
+                PhaseAwareTemporalBlock(
+                    hidden_dim=hidden_dim,
+                    fs=fs,
+                    low_bpm=low_bpm,
+                    high_bpm=high_bpm,
+                    num_freq_bins=num_freq_bins,
+                    dropout=dropout,
+                )
+                for _ in range(num_layers)
+            ]
+        )
+        self.output_norm = nn.LayerNorm(hidden_dim)
+        self.output_proj = nn.Linear(hidden_dim, output_size)
+        self.skip_proj = nn.Linear(input_size, output_size)
+
+    def forward(self, x):
+        x_norm = self.input_norm(x)
+        y = self.input_proj(x_norm)
+        for block in self.blocks:
+            y = block(y)
+        return self.output_proj(self.output_norm(y)) + self.skip_proj(x_norm)
+
 # --- 主模型：PhaseNet + 空间注意力 ---
 class PhaseNet(nn.Module):
-    def __init__(self, feature_dim=128, latent_dim=32, hidden_dim=128, tcn_layers=4):
+    def __init__(
+        self,
+        feature_dim=128,
+        latent_dim=32,
+        hidden_dim=128,
+        tcn_layers=4,
+        encoder_channels=(16, 32, 64, 128),
+        encoder_expand_ratio=4,
+        temporal_module="gated_tcn",
+        phase_fs=30.0,
+        phase_low_bpm=45.0,
+        phase_high_bpm=150.0,
+        phase_num_freq_bins=96,
+        phase_dropout=0.1,
+    ):
         super().__init__()
         self.feature_dim = feature_dim
         self.latent_dim = latent_dim
+        self.encoder_channels = tuple(int(channel) for channel in encoder_channels)
+        if len(self.encoder_channels) < 2:
+            raise ValueError("PhaseNet encoder_channels must include stem and at least one encoder stage")
+        self.encoder_expand_ratio = int(encoder_expand_ratio)
+        self.temporal_module = str(temporal_module).lower()
 
         # 1. 视觉编码器
+        stem_channels = self.encoder_channels[0]
+        encoder_out_channels = self.encoder_channels[-1]
+        encoder_blocks = []
+        in_channels = stem_channels
+        for out_channels in self.encoder_channels[1:]:
+            encoder_blocks.append(
+                EfficientSpatioTemporalBlock(
+                    in_channels,
+                    out_channels,
+                    expand_ratio=self.encoder_expand_ratio,
+                )
+            )
+            in_channels = out_channels
         self.base_encoder = nn.Sequential(
-            nn.Conv3d(3, 16, kernel_size=(1, 5, 5), padding=(0, 2, 2)),
-            nn.InstanceNorm3d(16),
+            nn.Conv3d(3, stem_channels, kernel_size=(1, 5, 5), padding=(0, 2, 2)),
+            nn.InstanceNorm3d(stem_channels),
             nn.ReLU(inplace=True),
-            EfficientSpatioTemporalBlock(16, 32),
-            EfficientSpatioTemporalBlock(32, 64),
-            EfficientSpatioTemporalBlock(64, 128),
+            *encoder_blocks,
         )
 
         # 1.5 空间注意力
-        self.attention_head = SpatialAttentionHead(in_channels=128)
+        self.attention_head = SpatialAttentionHead(in_channels=encoder_out_channels)
 
-        self.encoder_head = nn.Linear(128, feature_dim)
+        self.encoder_head = nn.Linear(encoder_out_channels, feature_dim)
 
-        # 2. 门控 TCN 时序建模
+        # 2. 时序建模
         tcn_channels = [hidden_dim] * tcn_layers
-        self.temporal_model = GatedTCN(
-            input_size=feature_dim * 2,
-            output_size=feature_dim,
-            num_channels=tcn_channels,
-            kernel_size=3
-        )
+        if self.temporal_module in ("gated_tcn", "tcn", "default"):
+            self.temporal_model = GatedTCN(
+                input_size=feature_dim * 2,
+                output_size=feature_dim,
+                num_channels=tcn_channels,
+                kernel_size=3
+            )
+        elif self.temporal_module in ("phase_aware", "rppg_phase", "phase_temporal"):
+            self.temporal_model = PhaseAwareTemporalMixer(
+                input_size=feature_dim * 2,
+                output_size=feature_dim,
+                hidden_dim=hidden_dim,
+                num_layers=tcn_layers,
+                fs=phase_fs,
+                low_bpm=phase_low_bpm,
+                high_bpm=phase_high_bpm,
+                num_freq_bins=phase_num_freq_bins,
+                dropout=phase_dropout,
+            )
+        else:
+            raise ValueError(f"Unsupported PhaseNet temporal module: {self.temporal_module}")
 
 
         # self.temporal_model = TemporalCausalConvMinimal(

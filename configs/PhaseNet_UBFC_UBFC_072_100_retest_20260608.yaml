@@ -1,0 +1,137 @@
+BASE: ['']
+TOOLBOX_MODE: "train_and_test"
+TRAIN:
+  BATCH_SIZE: 1
+  EPOCHS: 10
+  LR: 1e-4
+  MODEL_FILE_NAME: PhysLLM_PhaseNet_UBFC_UBFC_072_100_retest_20260608
+  PLOT_LOSSES_AND_LR: false
+  DATA:
+    INFO:
+      LIGHT: [1, 2, 3, 4]
+      MOTION: [1, 2, 3, 4]
+      EXERCISE: [1, 2]
+      SKIN_COLOR: [3, 4, 5, 6]
+      GENDER: [1, 2]
+      GLASSER: [1, 2]
+      HAIR_COVER: [1, 2]
+      MAKEUP: [1, 2]
+    FS: 30
+    DATASET: UBFC-rPPG
+    DO_PREPROCESS: false
+    DATA_FORMAT: NCDHW
+    DATA_PATH: "/public_hw/share/cit_ztyu/cit_yipingxie/rPPG_dataset/UBFC"
+    CACHED_PATH: "/public_hw/share/cit_ztyu/zhaobo/rPPG_dataset_processed/UBFC"
+    FILE_LIST_PATH: "/public_hw/share/cit_ztyu/zhaobo/rPPG_dataset_processed/UBFC/DataFileLists"
+    EXP_DATA_NAME: ""
+    BEGIN: 0.0
+    END: 0.72
+    PREPROCESS:
+      DATA_TYPE: ['Raw']
+      DATA_AUG: ['None']
+      LABEL_TYPE: Raw
+      DO_CHUNK: True
+      CHUNK_LENGTH: 128
+      CROP_FACE:
+        DO_CROP_FACE: True
+        BACKEND: 'HC'
+        USE_LARGE_FACE_BOX: True
+        LARGE_BOX_COEF: 1.5
+        DETECTION:
+          DO_DYNAMIC_DETECTION: False
+          DYNAMIC_DETECTION_FREQUENCY: 30
+          USE_MEDIAN_FACE_BOX: False
+      RESIZE:
+        H: 128
+        W: 128
+VALID:
+  DATA:
+    FS: 30
+    DATASET: None
+    DO_PREPROCESS: false
+    DATA_FORMAT: NCDHW
+    DATA_PATH: ""
+    CACHED_PATH: ""
+    FILE_LIST_PATH: ""
+    EXP_DATA_NAME: ""
+    BEGIN: 0.8
+    END: 1.0
+    PREPROCESS:
+      DATA_TYPE: ['Raw']
+      DATA_AUG: ['None']
+      LABEL_TYPE: Raw
+      DO_CHUNK: True
+      CHUNK_LENGTH: 128
+      CROP_FACE:
+        DO_CROP_FACE: True
+        BACKEND: 'HC'
+        USE_LARGE_FACE_BOX: True
+        LARGE_BOX_COEF: 1.5
+        DETECTION:
+          DO_DYNAMIC_DETECTION: False
+          DYNAMIC_DETECTION_FREQUENCY: 30
+          USE_MEDIAN_FACE_BOX: False
+      RESIZE:
+        H: 128
+        W: 128
+TEST:
+  METRICS: ['MAE', 'RMSE', 'MAPE', 'Pearson', 'SNR']
+  USE_LAST_EPOCH: true
+  DATA:
+    INFO:
+      LIGHT: [1, 2, 3, 4]
+      MOTION: [1, 2, 3, 4]
+      EXERCISE: [1, 2]
+      SKIN_COLOR: [3, 4, 5, 6]
+      GENDER: [1, 2]
+      GLASSER: [1, 2]
+      HAIR_COVER: [1, 2]
+      MAKEUP: [1, 2]
+    FS: 30
+    DATASET: UBFC-rPPG
+    DO_PREPROCESS: false
+    DATA_FORMAT: NCDHW
+    DATA_PATH: "/public_hw/share/cit_ztyu/cit_yipingxie/rPPG_dataset/UBFC"
+    CACHED_PATH: "/public_hw/share/cit_ztyu/zhaobo/rPPG_dataset_processed/UBFC"
+    FILE_LIST_PATH: "/public_hw/share/cit_ztyu/zhaobo/rPPG_dataset_processed/UBFC/DataFileLists"
+    EXP_DATA_NAME: ""
+    BEGIN: 0.72
+    END: 1.0
+    PREPROCESS:
+      DATA_TYPE: ['Raw']
+      LABEL_TYPE: Raw
+      DO_CHUNK: True
+      CHUNK_LENGTH: 128
+      CROP_FACE:
+        DO_CROP_FACE: True
+        BACKEND: 'HC'
+        USE_LARGE_FACE_BOX: True
+        LARGE_BOX_COEF: 1.5
+        DETECTION:
+          DO_DYNAMIC_DETECTION: False
+          DYNAMIC_DETECTION_FREQUENCY: 30
+          USE_MEDIAN_FACE_BOX: False
+      RESIZE:
+        H: 128
+        W: 128
+DEVICE: cuda:0
+NUM_OF_GPU_TRAIN: 1
+LOG:
+  PATH: ./logs/PhaseNet/PhysLLM_UBFC_UBFC_072_100_retest_20260608
+MODEL:
+  DROP_RATE: 0.2
+  NAME: PhaseNet
+  PHASENET:
+    PARAMS:
+      FEATURE_DIM: 128
+      LATENT_DIM: 32
+      HIDDEN_DIM: 128
+      K_STEPS: 10
+      K_LR: 0.1
+INFERENCE:
+  BATCH_SIZE: 4
+  EVALUATION_METHOD: "FFT"
+  EVALUATION_WINDOW:
+    USE_SMALLER_WINDOW: False
+    WINDOW_SIZE: 10
+  MODEL_PATH: ""

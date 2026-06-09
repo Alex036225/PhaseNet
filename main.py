@@ -49,7 +49,10 @@ def add_args(parser):
 
 def resolve_loader(dataset_name):
     mapping = {
+        "JOINT": UBFCrPPGLoader,
         "UBFC-rPPG": UBFCrPPGLoader,
+        "PURE": UBFCrPPGLoader,
+        "BUAA": UBFCrPPGLoader,
         "MMPD": MMPDLoader,
         "Zhuhai": ZhuhaiLoader,
     }
